@@ -1,47 +1,43 @@
 package com.contele.api.contele_forms_api.servico;
 
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-
 import com.contele.api.contele_forms_api.modelo.RespostaFormulariosContele;
 import com.contele.api.contele_forms_api.modelo.RespostaTemplatesFormulariosContele;
 
+import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Mono;
 
 @Service // Marca esta classe como um serviço do Spring.
 public class ClienteConteleFormularios {
 
-    private final WebClient clienteWeb;
+    private WebClient clienteWeb;
 
-    @Value("${contele.api.token}") // Injeta o token de autenticação.
+    @Value("${contele.api.token}")
     private String tokenApi;
 
-    @Value("${contele.api.key}") // Injeta a chave de API.
-    private String chaveApi;
+    @Value("${contele.api.base-url}")
+    private String baseUrl;
 
-    public ClienteConteleFormularios(WebClient clienteWebContele) {
-        // O Spring injeta o bean WebClient configurado.
-        this.clienteWeb = clienteWebContele;
+    @PostConstruct
+    public void init() {
+        this.clienteWeb = WebClient.builder()
+                .baseUrl(baseUrl)
+                .build();
     }
 
     public Mono<RespostaTemplatesFormulariosContele> obterTemplatesFormularios() {
         return clienteWeb.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/api/v1/list-forms-templates")
-                        .queryParam("page", 1)
-                        .queryParam("per_page", 50)
-                        .queryParam("status", "active")
-                        .queryParam("add_users_information_to_form_template", true)
-                        .build())
-                .header("Authorization", "Bearer " + tokenApi) // Adiciona o cabeçalho de token JWT.
-                .header("X-API-KEY", chaveApi) // Adiciona o cabeçalho da chave de API.
+                .uri("/api/v1/list-form-templates")
+                .header("Authorization", "Bearer " + tokenApi)
                 .retrieve()
-                .bodyToMono(RespostaTemplatesFormulariosContele.class); // Mapeia a resposta para a classe Java.
+                .bodyToMono(RespostaTemplatesFormulariosContele.class);
     }
 
-    public Mono<RespostaFormulariosContele> obterFormulariosPorTemplates(String idsTemplates) {
+    public Mono<RespostaFormulariosContele> obterFormulariosPorVisita(String idDaVisita) {
+        String linkedUrns = "v0:cge:task:" + idDaVisita;
+
         return clienteWeb.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/v1/list-forms")
@@ -50,12 +46,11 @@ public class ClienteConteleFormularios {
                         .queryParam("add_tasks_information_to_form", true)
                         .queryParam("add_users_information_to_form", true)
                         .queryParam("only_forms_with_answers", true)
-                        .queryParam("templates_ids", idsTemplates)
+                        .queryParam("linked_urns", linkedUrns)
                         .queryParam("page", 1)
                         .queryParam("per_page", 100)
                         .build())
                 .header("Authorization", "Bearer " + tokenApi)
-                .header("X-API-KEY", chaveApi)
                 .retrieve()
                 .bodyToMono(RespostaFormulariosContele.class);
     }
